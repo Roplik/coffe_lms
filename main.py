@@ -1,13 +1,16 @@
 import sys
 import sqlite3
-from PyQt6 import uic
-from PyQt6.QtWidgets import QApplication, QMainWindow, QTableWidgetItem, QMessageBox, QDialog
+from PyQt6.QtWidgets import QApplication, QMainWindow, QTableWidgetItem, QDialog, QMessageBox
+
+# Импорт сконвертированных UI-файлов
+from UI.main_ui import Ui_MainWindow
+from UI.addEditCoffeeForm_ui import Ui_AddEditCoffeeForm
 
 
-class AddEditCoffeeForm(QDialog):
+class AddEditCoffeeForm(QDialog, Ui_AddEditCoffeeForm):
     def __init__(self, parent=None, coffee_id=None):
         super().__init__(parent)
-        uic.loadUi('addEditCoffeeForm.ui', self)
+        self.setupUi(self)  # Инициализация интерфейса
 
         self.coffee_id = coffee_id
         self.parent = parent
@@ -15,12 +18,11 @@ class AddEditCoffeeForm(QDialog):
         if self.coffee_id:
             self.load_data()
 
-        # Связывание кнопок
         self.saveButton.clicked.connect(self.save_data)
         self.cancelButton.clicked.connect(self.close)
 
     def load_data(self):
-
+        """Загрузка данных для редактирования."""
         self.parent.cursor.execute("SELECT * FROM coffee WHERE id=?", (self.coffee_id,))
         data = self.parent.cursor.fetchone()
 
@@ -42,7 +44,6 @@ class AddEditCoffeeForm(QDialog):
         package_volume = float(self.packageVolumeEdit.text())
 
         if self.coffee_id:
-            # Редактирование существующей записи
             self.parent.cursor.execute(
                 "UPDATE coffee SET name=?, roast_level=?, ground_or_beans=?, taste_description=?, price=?, package_volume=? WHERE id=?",
                 (name, roast_level, ground_or_beans, taste_description, price, package_volume, self.coffee_id))
@@ -51,17 +52,17 @@ class AddEditCoffeeForm(QDialog):
                 "INSERT INTO coffee (name, roast_level, ground_or_beans, taste_description, price, package_volume) VALUES (?, ?, ?, ?, ?, ?)",
                 (name, roast_level, ground_or_beans, taste_description, price, package_volume))
 
-            self.parent.conn.commit()
-            self.parent.load_data()
-            self.close()
+        self.parent.conn.commit()
+        self.parent.load_data()
+        self.close()
 
 
-class CoffeeApp(QMainWindow):
+class CoffeeApp(QMainWindow, Ui_MainWindow):
     def __init__(self):
         super().__init__()
-        uic.loadUi('main.ui', self)
+        self.setupUi(self)  # Инициализация интерфейса
 
-        self.conn = sqlite3.connect('coffee.sqlite')
+        self.conn = sqlite3.connect('data/coffee.sqlite')
         self.cursor = self.conn.cursor()
 
         self.tableWidget.setColumnCount(7)
@@ -76,7 +77,7 @@ class CoffeeApp(QMainWindow):
         self.editButton.clicked.connect(self.edit_coffee)
 
     def load_data(self):
-
+        """Загрузка данных из базы данных и отображение в таблице."""
         self.cursor.execute("SELECT * FROM coffee")
         data = self.cursor.fetchall()
 
@@ -90,12 +91,12 @@ class CoffeeApp(QMainWindow):
                 )
 
     def add_coffee(self):
-
+        """Открытие формы для добавления новой записи."""
         form = AddEditCoffeeForm(self)
         form.exec()
 
     def edit_coffee(self):
-
+        """Открытие формы для редактирования выбранной записи."""
         selected_row = self.tableWidget.currentRow()
         if selected_row >= 0:
             coffee_id = self.tableWidget.item(selected_row, 0).text()
@@ -108,13 +109,8 @@ class CoffeeApp(QMainWindow):
         self.conn.close()
 
 
-def except_hook(cls, exception, traceback):
-    sys.__excepthook__(cls, exception, traceback)
-
-
 if __name__ == "__main__":
     app = QApplication(sys.argv)
     window = CoffeeApp()
-    sys.excepthook = except_hook
     window.show()
     sys.exit(app.exec())
